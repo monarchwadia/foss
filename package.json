@@ -1,0 +1,12 @@
+{
+  "name": "@monarchwadia/foss",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Monarch Wadia",
+  "private": true,
+  "license": "MIT",
+  "workspaces": [
+    "projects/*",
+    "examples/*"
+  ]
+}
