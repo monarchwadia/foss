@@ -5,7 +5,8 @@
   "author": "Monarch Wadia",
   "license": "MIT",
   "scripts": {
-    "start": "not-enough-buttons"
+    "start": "not-enough-buttons watch",
+    "build": "not-enough-buttons build"
   },
   "devDependencies": {
     "not-enough-buttons": "*"

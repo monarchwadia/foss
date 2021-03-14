@@ -9,6 +9,7 @@
   },
   "scripts": {},
   "dependencies": {
+    "commander": "^7.1.0",
     "rollup": "^2.41.2",
     "rollup-plugin-multi-input": "^1.2.0"
   },

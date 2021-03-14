@@ -7,6 +7,11 @@ module.exports = class ManifestJsonTransformer {
     this.manifestFound = false;
   }
 
+  reset() {
+    console.log("Reset");
+    this.manifestFound = false;
+  }
+
   transform(contents, rawFilename) {
     const filename = rawFilename.toLowerCase();
 
