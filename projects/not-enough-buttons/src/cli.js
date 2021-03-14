@@ -3,6 +3,8 @@ const rollup = require("rollup");
 const copy = require("rollup-plugin-copy");
 const multiInput = require("rollup-plugin-multi-input");
 const ManifestJsonTransformer = require("../utils/ManifestJsonTransformer");
+const config = require("./config");
+const { getWriteOptions } = require("./utils");
 
 // must pass a command line command. For example, `not-enough-buttons build`
 const command = process.argv[2];
@@ -19,33 +21,26 @@ switch (command) {
     }
 }
 
-const INPUT_FOLDER = "src";
-const OUTPUT_FOLDER = "dist";
-
-const fromInput = (string) => INPUT_FOLDER + "/" + string;
-
-const JAVASCRIPT_GLOB = fromInput("**/*.js");
-const MANIFEST_GLOBS = [
-  // don't do manifest.js, that's done in a custom plugin
-  fromInput("manifest.js"),
-  fromInput("manifest.json"),
-];
-const NOT_MANIFEST_GLOBS = MANIFEST_GLOBS.map((str) => "!" + str);
-
-const manifestJsonTransformer = new ManifestJsonTransformer(INPUT_FOLDER);
+const { INPUT_FOLDER, OUTPUT_FOLDER } = config();
 
 (async function main() {
+  const manifestJsonTransformer = new ManifestJsonTransformer(INPUT_FOLDER);
+
+  // create various globs
+  const fromInput = (string) => INPUT_FOLDER + "/" + string;
+  const EVERYTHING = fromInput("**/*.*");
+  const JAVASCRIPT = fromInput("**/*.js");
+  const NOT_JAVASCRIPT = "!" + JAVASCRIPT;
+  const MANIFESTS = [fromInput("manifest.js"), fromInput("manifest.json")];
+  const NOT_MANIFESTS = MANIFESTS.map((str) => "!" + str);
+
   const rollupOptions = {
-    input: [JAVASCRIPT_GLOB],
+    input: [JAVASCRIPT],
     plugins: [
       copy({
         targets: [
           {
-            src: [
-              fromInput("**/*.*"),
-              `!${JAVASCRIPT_GLOB}`,
-              ...NOT_MANIFEST_GLOBS,
-            ],
+            src: [EVERYTHING, NOT_JAVASCRIPT, ...NOT_MANIFESTS],
             dest: OUTPUT_FOLDER,
           },
         ],
@@ -54,11 +49,11 @@ const manifestJsonTransformer = new ManifestJsonTransformer(INPUT_FOLDER);
       copy({
         targets: [
           {
-            src: MANIFEST_GLOBS,
+            src: MANIFESTS,
             dest: OUTPUT_FOLDER,
             transform: (contents, filename) =>
               manifestJsonTransformer.transform(contents, filename),
-            // doesn't work without the following line
+            // bug: doesn't work without the following line
             rename: () => "manifest.json",
           },
         ],
@@ -67,39 +62,34 @@ const manifestJsonTransformer = new ManifestJsonTransformer(INPUT_FOLDER);
     ],
   };
 
-  const writeOptions = {
-    dir: OUTPUT_FOLDER,
-    // format: "esm"
-  };
-
   if (command === "watch") {
     const watcher = rollup.watch({
       ...rollupOptions,
-      output: [writeOptions],
+      output: [getWriteOptions(OUTPUT_FOLDER)],
     });
+
     watcher.on("event", ({ result, code, error }) => {
-      switch (code) {
-        case "START":
+      const handlers = {
+        START: () => {
           console.log("Building...");
           manifestJsonTransformer.reset();
-          break;
-        case "BUNDLE_START":
-          break;
-        case "BUNDLE_END":
-          result.close();
-          break;
-        case "END":
-          break;
-        case "ERROR":
+        },
+        BUNDLE_END: () => result.close(),
+        ERROR: () => {
           console.error(error);
           result.close();
-          break;
-      }
+        },
+        BUNDLE_START: null,
+        END: null,
+      };
+
+      const handler = handlers[code];
+      handler && handler();
     });
   } else {
     const bundle = await rollup.rollup(rollupOptions);
     console.log(bundle.watchFiles);
-    await bundle.write(writeOptions);
+    await bundle.write(getWriteOptions(OUTPUT_FOLDER));
     await bundle.close();
   }
 })();

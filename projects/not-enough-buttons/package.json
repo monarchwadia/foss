@@ -5,7 +5,7 @@
   "author": "Monarch Wadia",
   "license": "MIT",
   "bin": {
-    "not-enough-buttons": "bin/cli.js"
+    "not-enough-buttons": "src/cli.js"
   },
   "scripts": {},
   "dependencies": {
