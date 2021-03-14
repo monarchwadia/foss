@@ -4,7 +4,7 @@ const copy = require("rollup-plugin-copy");
 const multiInput = require("rollup-plugin-multi-input");
 const ManifestJsonTransformer = require("../utils/ManifestJsonTransformer");
 const config = require("./config");
-const { getWriteOptions } = require("./utils");
+const { getWriteOptions, getGlobs } = require("./utils");
 
 // must pass a command line command. For example, `not-enough-buttons build`
 const command = process.argv[2];
@@ -21,18 +21,17 @@ switch (command) {
     }
 }
 
-const { INPUT_FOLDER, OUTPUT_FOLDER } = config();
-
-(async function main() {
-  const manifestJsonTransformer = new ManifestJsonTransformer(INPUT_FOLDER);
-
+async function main(INPUT_FOLDER, OUTPUT_FOLDER) {
   // create various globs
-  const fromInput = (string) => INPUT_FOLDER + "/" + string;
-  const EVERYTHING = fromInput("**/*.*");
-  const JAVASCRIPT = fromInput("**/*.js");
-  const NOT_JAVASCRIPT = "!" + JAVASCRIPT;
-  const MANIFESTS = [fromInput("manifest.js"), fromInput("manifest.json")];
-  const NOT_MANIFESTS = MANIFESTS.map((str) => "!" + str);
+  const {
+    EVERYTHING,
+    JAVASCRIPT,
+    NOT_JAVASCRIPT,
+    MANIFESTS,
+    NOT_MANIFESTS,
+  } = getGlobs(INPUT_FOLDER);
+
+  const manifestJsonTransformer = new ManifestJsonTransformer(INPUT_FOLDER);
 
   const rollupOptions = {
     input: [JAVASCRIPT],
@@ -92,4 +91,8 @@ const { INPUT_FOLDER, OUTPUT_FOLDER } = config();
     await bundle.write(getWriteOptions(OUTPUT_FOLDER));
     await bundle.close();
   }
-})();
+}
+
+const { INPUT_FOLDER, OUTPUT_FOLDER } = config();
+
+main(INPUT_FOLDER, OUTPUT_FOLDER);
