@@ -2,24 +2,20 @@
 const rollup = require("rollup");
 const copy = require("rollup-plugin-copy");
 const multiInput = require("rollup-plugin-multi-input");
-const ManifestJsonTransformer = require("../utils/ManifestJsonTransformer");
 const config = require("./config");
+const path = require("path");
 const { getWriteOptions, getGlobs } = require("./utils");
 
 // must pass a command line command. For example, `not-enough-buttons build`
 const command = process.argv[2];
 
-switch (command) {
-  case "build":
-  case "watch":
-    break;
-  default:
-    if (!command) {
-      throw new Error("Must pass either build or watch command.");
-    } else {
-      throw new Error("Unknown command " + command);
-    }
+if (command !== "build" && command !== "watch") {
+  throw new Error(
+    "Script must receive either build or watch command. Instead, got " + command
+  );
 }
+
+let mode = command === "build" ? "PRODUCTION" : "DEVELOPMENT";
 
 async function main(INPUT_FOLDER, OUTPUT_FOLDER) {
   // create various globs
@@ -30,8 +26,6 @@ async function main(INPUT_FOLDER, OUTPUT_FOLDER) {
     MANIFESTS,
     NOT_MANIFESTS,
   } = getGlobs(INPUT_FOLDER);
-
-  const manifestJsonTransformer = new ManifestJsonTransformer(INPUT_FOLDER);
 
   const rollupOptions = {
     input: [JAVASCRIPT],
@@ -50,8 +44,27 @@ async function main(INPUT_FOLDER, OUTPUT_FOLDER) {
           {
             src: MANIFESTS,
             dest: OUTPUT_FOLDER,
-            transform: (contents, filename) =>
-              manifestJsonTransformer.transform(contents, filename),
+            transform: (contents, rawFilename) => {
+              const filename = rawFilename.toLowerCase();
+              if (filename !== "manifest.js" && filename !== "manifest.json") {
+                // we don't process non-manifest files
+                return contents;
+              }
+
+              let manifestJson;
+              if (filename === "manifest.js") {
+                // the manifest.js file returns a potentially processed json object.
+                manifestJson = require(path.resolve(
+                  process.cwd(),
+                  path.join(INPUT_FOLDER, filename)
+                ));
+              } else {
+                // the manifest.json file contains the final json object.
+                manifestJson = JSON.parse(contents.toString());
+              }
+
+              return Buffer.from(JSON.stringify(manifestJson, null, 2), "utf8");
+            },
             // bug: doesn't work without the following line
             rename: () => "manifest.json",
           },
@@ -71,7 +84,6 @@ async function main(INPUT_FOLDER, OUTPUT_FOLDER) {
       const handlers = {
         START: () => {
           console.log("Building...");
-          manifestJsonTransformer.reset();
         },
         BUNDLE_END: () => result.close(),
         ERROR: () => {
