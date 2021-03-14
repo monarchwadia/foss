@@ -5,6 +5,7 @@ const multiInput = require("rollup-plugin-multi-input");
 const config = require("./config");
 const path = require("path");
 const { getWriteOptions, getGlobs } = require("./utils");
+const hotReload = require("./hot-reload-plugin");
 
 // must pass a command line command. For example, `not-enough-buttons build`
 const command = process.argv[2];
@@ -15,7 +16,7 @@ if (command !== "build" && command !== "watch") {
   );
 }
 
-let mode = command === "build" ? "PRODUCTION" : "DEVELOPMENT";
+const isProduction = command === "build";
 
 async function main(INPUT_FOLDER, OUTPUT_FOLDER) {
   // create various globs
@@ -63,6 +64,16 @@ async function main(INPUT_FOLDER, OUTPUT_FOLDER) {
                 manifestJson = JSON.parse(contents.toString());
               }
 
+              // add hotreload scripts.
+              if (!isProduction) {
+                manifestJson.background = manifestJson.background || {};
+                manifestJson.background.scripts =
+                  manifestJson.background.scripts || [];
+                manifestJson.background.scripts.push(
+                  "neb-scripts/hot-reload.js"
+                );
+              }
+
               return Buffer.from(JSON.stringify(manifestJson, null, 2), "utf8");
             },
             // bug: doesn't work without the following line
@@ -70,7 +81,11 @@ async function main(INPUT_FOLDER, OUTPUT_FOLDER) {
           },
         ],
       }),
+
       multiInput.default(),
+      hotReload({
+        targets: [{ dest: OUTPUT_FOLDER }],
+      }),
     ],
   };
 
