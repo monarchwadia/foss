@@ -7,3 +7,7 @@
 # Features
 
 - manifest.json can be templated using a `manifest.js` file.
+
+# Limitations
+
+- only supports manifest v2.

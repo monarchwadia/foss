@@ -38,6 +38,7 @@ async function main(INPUT_FOLDER, OUTPUT_FOLDER) {
             dest: OUTPUT_FOLDER,
           },
         ],
+        flatten: false,
       }),
       // copy manifest.json, process manifest.js
       copy({
